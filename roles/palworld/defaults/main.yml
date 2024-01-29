@@ -1,0 +1,8 @@
+---
+# defaults file for palworld
+
+server_group: your_server_group
+steam_user: steam
+steam_user_password: your_password
+steamcmd_app_id: 2394010
+non_free_repo: 'deb http://http.debian.net/debian/ jessie main contrib non-free'

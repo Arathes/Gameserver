@@ -1,0 +1,70 @@
+---
+- name: Setup Palworld Server
+  hosts: "{{ server_group }}"
+  become: yes
+  tasks:
+    - name: Update and upgrade apt packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Install software-properties-common and add non-free repository
+      apt:
+        name: software-properties-common
+        update_cache: yes
+      notify: Add non-free repository
+
+    - name: Add i386 architecture
+      ansible.builtin.command:
+        cmd: dpkg --add-architecture i386
+      notify: Update apt cache after adding i386
+
+    - name: Install steamcmd
+      apt:
+        name: steamcmd
+        update_cache: yes
+
+    - name: Install sudo and create steam user
+      block:
+        - name: Install sudo
+          apt:
+            name: sudo
+
+        - name: Create steam user
+          ansible.builtin.user:
+            name: "{{ steam_user }}"
+            create_home: yes
+            shell: /bin/bash
+
+        - name: Set password for steam user
+          ansible.builtin.user:
+            name: "{{ steam_user }}"
+            password: "{{ steam_user_password | password_hash('sha512') }}"
+
+    - name: Execute steamcmd commands
+      ansible.builtin.command:
+        cmd: "/usr/games/steamcmd +login anonymous +app_update {{ steamcmd_app_id }} validate +quit"
+      become: yes
+      become_user: "{{ steam_user }}"
+      args:
+        chdir: "/home/{{ steam_user }}"
+
+    - name: Check for .steam directory
+      stat:
+        path: "/home/{{ steam_user }}/.steam"
+      register: steam_directory
+
+    - name: Display message based on .steam directory existence
+      ansible.builtin.debug:
+        msg: "{{ 'You have a .steam folder - FOLLOW THE SCRIPT' if steam_directory.stat.exists else 'YOU DONT HAVE A .steam FOLDER, PLEASE USE THE SPECIFIC SCRIPT' }}"
+
+  handlers:
+    - name: Add non-free repository
+      ansible.builtin.apt_repository:
+        repo: "{{ non_free_repo }}"
+        state: present
+        update_cache: yes
+
+    - name: Update apt cache after adding i386
+      apt:
+        update_cache: yes
